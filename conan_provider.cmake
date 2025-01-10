@@ -488,6 +488,7 @@ function(conan_install)
     # TODO: this can be made more robust if Conan can provide this in the json output
     string(JSON conan_generators_folder GET "${conan_stdout}" graph nodes 0 generators_folder)
     cmake_path(CONVERT ${conan_generators_folder} TO_CMAKE_PATH_LIST conan_generators_folder)
+
     message(STATUS "CMake-Conan: CONAN_GENERATORS_FOLDER=${conan_generators_folder}")
     set_property(GLOBAL PROPERTY CONAN_GENERATORS_FOLDER "${conan_generators_folder}")
     # reconfigure on conanfile changes
@@ -594,8 +595,10 @@ macro(conan_provide_dependency method package_name)
             conan_install(${_host_profile_flags} ${_build_profile_flags} -s build_type=Debug ${CONAN_INSTALL_ARGS} ${generator})
         endif()
         get_property(_conan_generators_folder GLOBAL PROPERTY CONAN_GENERATORS_FOLDER)
-        message(STATUS "CMake-Conan: Loading conan_cmakedeps_paths.cmake file")
-        include(${_conan_generators_folder}/conan_cmakedeps_paths.cmake)
+        if(EXISTS "${_conan_generators_folder}/conan_cmakedeps_paths.cmake")
+            message(STATUS "CMake-Conan: Loading conan_cmakedeps_paths.cmake file")
+            include(${_conan_generators_folder}/conan_cmakedeps_paths.cmake)
+        endif()
         unset(_host_profile_flags)
         unset(_build_profile_flags)
         unset(_multiconfig_generator)
@@ -606,6 +609,7 @@ macro(conan_provide_dependency method package_name)
     endif()
 
     get_property(_conan_generators_folder GLOBAL PROPERTY CONAN_GENERATORS_FOLDER)
+
     # Ensure that we consider Conan-provided packages ahead of any other,
     # irrespective of other settings that modify the search order or search paths
     # This follows the guidelines from the find_package documentation
@@ -617,7 +621,7 @@ macro(conan_provide_dependency method package_name)
     set(_find_args_${package_name} "${ARGN}")
     list(REMOVE_ITEM _find_args_${package_name} "REQUIRED")
     if(NOT "MODULE" IN_LIST _find_args_${package_name})
-        find_package(${package_name} ${_find_args_${package_name}} BYPASS_PROVIDER)
+        find_package(${package_name} ${_find_args_${package_name}} BYPASS_PROVIDER PATHS "${_conan_generators_folder}" NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH)
         unset(_find_args_${package_name})
     endif()
 
